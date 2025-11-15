@@ -1,0 +1,36 @@
+#include <stdio.h>
+
+__global__ void vectorSub(float *a, float *b, float *c, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) c[i] = a[i] - b[i];
+}
+
+int main() {
+    int n = 1 << 20;
+    size_t size = n * sizeof(float);
+    float *h_a, *h_b, *h_c;
+    cudaMallocHost(&h_a, size);
+    cudaMallocHost(&h_b, size);
+    cudaMallocHost(&h_c, size);
+    for (int i = 0; i < n; i++) {
+        h_a[i] = i * 1.0f;
+        h_b[i] = i * 0.5f;
+    }
+    float *d_a, *d_b, *d_c;
+    cudaMalloc(&d_a, size);
+    cudaMalloc(&d_b, size);
+    cudaMalloc(&d_c, size);
+    cudaMemcpy(d_a, h_a, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_b, h_b, size, cudaMemcpyHostToDevice);
+    int blockSize = 256;
+    int gridSize = (n + blockSize - 1) / blockSize;
+    vectorSub<<<gridSize, blockSize>>>(d_a, d_b, d_c, n);
+    cudaMemcpy(h_c, d_c, size, cudaMemcpyDeviceToHost);
+    cudaFree(d_a);
+    cudaFree(d_b);
+    cudaFree(d_c);
+    cudaFreeHost(h_a);
+    cudaFreeHost(h_b);
+    cudaFreeHost(h_c);
+    return 0;
+}
